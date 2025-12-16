@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import SobrietyCounter from './components/SobrietyCounter';
 import MotivationSection from './components/MotivationSection';
 import HelpDirectory from './components/HelpDirectory';
@@ -19,6 +19,17 @@ function App() {
   const [showPanic, setShowPanic] = useState(false);
   const [user, setUser] = useState(null);
 
+  const isExplicitLogout = useRef(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Redirect to home if on a protected route and not logged in
+  useEffect(() => {
+    if (!user && !startDate && (location.pathname === '/settings' || location.pathname === '/education')) {
+      navigate('/');
+    }
+  }, [user, startDate, location, navigate]);
+
   useEffect(() => {
     // Determine if we should auto-sign in anonymously
     // We only do this if there's no user logic handled yet (auth state is null initially, but onAuthStateChanged fires)
@@ -29,6 +40,9 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        // Reset logout flag on successful login
+        isExplicitLogout.current = false;
+
         // Load data from Firestore
         const docRef = doc(db, "users", currentUser.uid);
         const docSnap = await getDoc(docRef);
@@ -46,11 +60,13 @@ function App() {
         }
       } else {
         // Only sign in anonymously if explicitly needed or first load?
-        // Let's just catch the case where we don't have a user.
-        signInAnonymously(auth).catch((error) => {
-          // Ignore error if multiple tabs etc, or handle gracefully
-          console.log("Anonymous auth fallback");
-        });
+        // don't auto-sign in if user explicitly logged out
+        if (!isExplicitLogout.current) {
+          signInAnonymously(auth).catch((error) => {
+            // Ignore error if multiple tabs etc, or handle gracefully
+            console.log("Anonymous auth fallback");
+          });
+        }
       }
     });
 
@@ -130,147 +146,147 @@ function App() {
   };
 
   const handleLogout = async () => {
-    if (confirm("¿Cerrar sesión? Si eres anónimo, perderás el acceso a estos datos.")) {
+    if (confirm("¿Cerrar sesión?")) {
+      isExplicitLogout.current = true; // Mark as explicit logout
       await signOut(auth);
       setStartDate(null);
+      navigate('/'); // Redirect to home/welcome screen
     }
   };
 
   return (
-    <Router>
-      <div className="app-container">
-        <header className="app-header">
-          <div className="logo">
-            <ShieldCheck size={32} className="logo-icon" />
-            <h1>Sobriamente</h1>
-          </div>
-          <div className="header-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {user ? (
-              <>
-                {user.isAnonymous && (
-                  <button
-                    className="auth-btn"
-                    onClick={handleGoogleLogin}
-                    title="Guardar Progreso"
-                    style={{ background: '#fde047', color: '#0f172a', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 'bold' }}
-                  >
-                    <Save size={16} />
-                    <span className="btn-text">Guardar</span>
-                  </button>
-                )}
+    <div className="app-container">
+      <header className="app-header">
+        <div className="logo">
+          <ShieldCheck size={32} className="logo-icon" />
+          <h1>Sobriamente</h1>
+        </div>
+        <div className="header-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {user ? (
+            <>
+              {user.isAnonymous && (
                 <button
                   className="auth-btn"
-                  onClick={handleLogout}
-                  title="Cerrar Sesión"
-                  style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.4rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={handleGoogleLogin}
+                  title="Guardar Progreso"
+                  style={{ background: '#fde047', color: '#0f172a', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 'bold' }}
                 >
-                  <LogOut size={18} />
+                  <Save size={16} />
+                  <span className="btn-text">Guardar</span>
                 </button>
-              </>
-            ) : (
+              )}
               <button
                 className="auth-btn"
-                onClick={handleGoogleLogin}
-                title="Iniciar Sesión"
-                style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '500' }}
+                onClick={handleLogout}
+                title="Cerrar Sesión"
+                style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.4rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                <LogIn size={16} />
-                <span>Entrar</span>
+                <LogOut size={18} />
               </button>
-            )}
-            {startDate && !showPanic && (
-              <button className="panic-toggle" onClick={handleShare} title="Compartir progreso">
-                <Share2 size={20} />
-              </button>
-            )}
-            <button
-              className={`panic-toggle ${showPanic ? 'active' : ''}`}
-              onClick={togglePanic}
-            >
-              <AlertTriangle size={20} />
-              {showPanic ? 'Cerrar' : 'Ayuda'}
-            </button>
-          </div>
-        </header>
-
-        <main className="app-content">
-          {showPanic ? (
-            <div className="panic-view fade-in">
-              <h2>Estamos contigo</h2>
-              <p>Si sientes que vas a recaer, respira profundo. No estás solo.</p>
-              <HelpDirectory />
-              <div className="emergency-actions">
-                <button className="emergency-btn" onClick={handleReset}>
-                  Tuve una recaída (Reiniciar)
-                </button>
-              </div>
-            </div>
+            </>
           ) : (
-            <Routes>
-              <Route path="/" element={
-                !startDate ? (
-                  <div className="welcome-screen fade-in">
-                    <h2>Bienvenido a tu nueva vida</h2>
-                    <p>El primer paso es el más importante.</p>
-                    <button className="start-btn" onClick={handleStart}>
-                      Comenzar mi viaje hoy
-                    </button>
-                    {user && user.isAnonymous && (
-                      <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }} onClick={handleGoogleLogin}>
-                        Ya tengo cuenta / Recuperar progreso
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="dashboard fade-in">
-                    <SobrietyCounter startDate={startDate} onReset={handleReset} />
-                    {user && (
-                      <>
-                        {user.isAnonymous && (
-                          <div className="auth-banner" style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '0.75rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.85rem', color: '#fde047' }}>Tu progreso no está guardado.</span>
-                            <button onClick={handleGoogleLogin} style={{ background: '#fde047', color: '#0f172a', padding: '0.25rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold' }}>Conectar Google</button>
-                          </div>
-                        )}
-                        <NotificationsPanel userId={user.uid} />
-                      </>
-                    )}
-                    <Achievements startDate={startDate} />
-                    <MotivationSection />
-                  </div>
-                )
-              } />
-              <Route path="/education" element={
-                <div className="fade-in">
-                  <EducationSection />
-                </div>
-              } />
-              <Route path="/settings" element={
-                user ? <Settings user={user} startDate={startDate} onUpdateDate={setStartDate} /> : <div className="loading">Inicia sesión para ver ajustes</div>
-              } />
-              <Route path="/companion/:userId" element={<CompanionView />} />
-            </Routes>
+            <button
+              className="auth-btn"
+              onClick={handleGoogleLogin}
+              title="Iniciar Sesión"
+              style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '500' }}
+            >
+              <LogIn size={16} />
+              <span>Entrar</span>
+            </button>
           )}
-        </main>
+          {startDate && !showPanic && (
+            <button className="panic-toggle" onClick={handleShare} title="Compartir progreso">
+              <Share2 size={20} />
+            </button>
+          )}
+          <button
+            className={`panic-toggle ${showPanic ? 'active' : ''}`}
+            onClick={togglePanic}
+          >
+            <AlertTriangle size={20} />
+            {showPanic ? 'Cerrar' : 'Ayuda'}
+          </button>
+        </div>
+      </header>
 
-        {!showPanic && startDate && (
-          <nav className="nav-bar">
-            <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <Home size={24} />
-              <span>Inicio</span>
-            </NavLink>
-            <NavLink to="/education" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <BookOpen size={24} />
-              <span>Aprender</span>
-            </NavLink>
-            <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <SettingsIcon size={24} />
-              <span>Ajustes</span>
-            </NavLink>
-          </nav>
+      <main className="app-content">
+        {showPanic ? (
+          <div className="panic-view fade-in">
+            <h2>Estamos contigo</h2>
+            <p>Si sientes que vas a recaer, respira profundo. No estás solo.</p>
+            <HelpDirectory />
+            <div className="emergency-actions">
+              <button className="emergency-btn" onClick={handleReset}>
+                Tuve una recaída (Reiniciar)
+              </button>
+            </div>
+          </div>
+        ) : (
+          <Routes>
+            <Route path="/" element={
+              !startDate ? (
+                <div className="welcome-screen fade-in">
+                  <h2>Bienvenido a tu nueva vida</h2>
+                  <p>El primer paso es el más importante.</p>
+                  <button className="start-btn" onClick={handleStart}>
+                    Comenzar mi viaje hoy
+                  </button>
+                  {user && user.isAnonymous && (
+                    <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }} onClick={handleGoogleLogin}>
+                      Ya tengo cuenta / Recuperar progreso
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="dashboard fade-in">
+                  <SobrietyCounter startDate={startDate} onReset={handleReset} />
+                  {user && (
+                    <>
+                      {user.isAnonymous && (
+                        <div className="auth-banner" style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '0.75rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem', color: '#fde047' }}>Tu progreso no está guardado.</span>
+                          <button onClick={handleGoogleLogin} style={{ background: '#fde047', color: '#0f172a', padding: '0.25rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold' }}>Conectar Google</button>
+                        </div>
+                      )}
+                      <NotificationsPanel userId={user.uid} />
+                    </>
+                  )}
+                  <Achievements startDate={startDate} />
+                  <MotivationSection />
+                </div>
+              )
+            } />
+            <Route path="/education" element={
+              <div className="fade-in">
+                <EducationSection />
+              </div>
+            } />
+            <Route path="/settings" element={
+              user ? <Settings user={user} startDate={startDate} onUpdateDate={setStartDate} /> : <div className="loading">Inicia sesión para ver ajustes</div>
+            } />
+            <Route path="/companion/:userId" element={<CompanionView />} />
+          </Routes>
         )}
-      </div>
-    </Router>
+      </main>
+
+      {!showPanic && startDate && (
+        <nav className="nav-bar">
+          <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <Home size={24} />
+            <span>Inicio</span>
+          </NavLink>
+          <NavLink to="/education" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <BookOpen size={24} />
+            <span>Aprender</span>
+          </NavLink>
+          <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <SettingsIcon size={24} />
+            <span>Ajustes</span>
+          </NavLink>
+        </nav>
+      )}
+    </div>
   );
 }
 
