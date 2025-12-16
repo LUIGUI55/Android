@@ -8,7 +8,7 @@ import EducationSection from './components/EducationSection';
 import CompanionView from './components/CompanionView';
 import NotificationsPanel from './components/NotificationsPanel';
 import Settings from './components/Settings';
-import { ShieldCheck, AlertTriangle, Home, BookOpen, Share2, Settings as SettingsIcon } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Home, BookOpen, Share2, Settings as SettingsIcon, LogIn, LogOut, Save } from 'lucide-react';
 import { auth, db, googleProvider } from './firebase';
 import { signInAnonymously, onAuthStateChanged, signInWithPopup, linkWithPopup, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore';
@@ -145,14 +145,37 @@ function App() {
             <h1>Sobriamente</h1>
           </div>
           <div className="header-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {user && (
+            {user ? (
+              <>
+                {user.isAnonymous && (
+                  <button
+                    className="auth-btn"
+                    onClick={handleGoogleLogin}
+                    title="Guardar Progreso"
+                    style={{ background: '#fde047', color: '#0f172a', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 'bold' }}
+                  >
+                    <Save size={16} />
+                    <span className="btn-text">Guardar</span>
+                  </button>
+                )}
+                <button
+                  className="auth-btn"
+                  onClick={handleLogout}
+                  title="Cerrar Sesión"
+                  style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.4rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <LogOut size={18} />
+                </button>
+              </>
+            ) : (
               <button
                 className="auth-btn"
-                onClick={user.isAnonymous ? handleGoogleLogin : handleLogout}
-                title={user.isAnonymous ? "Guardar Progreso" : "Cerrar Sesión"}
-                style={{ background: 'transparent', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.8rem' }}
+                onClick={handleGoogleLogin}
+                title="Iniciar Sesión"
+                style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '500' }}
               >
-                {user.isAnonymous ? "Guardar" : "Salir"}
+                <LogIn size={16} />
+                <span>Entrar</span>
               </button>
             )}
             {startDate && !showPanic && (
