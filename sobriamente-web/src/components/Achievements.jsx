@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Award, Lock, Star } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
+import CertificateGenerator from './CertificateGenerator';
 
 const milestones = [
     { days: 1, title: 'Primer Paso', description: '24 horas de claridad.' },
@@ -49,6 +50,8 @@ const Achievements = ({ startDate }) => {
                     );
                 })}
             </div>
+            
+            {daysSober > 0 && <CertificateGenerator daysSober={daysSober} startDate={startDate} />}
         </div>
     );
 };

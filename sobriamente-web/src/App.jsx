@@ -8,7 +8,17 @@ import EducationSection from './components/EducationSection';
 import CompanionView from './components/CompanionView';
 import NotificationsPanel from './components/NotificationsPanel';
 import Settings from './components/Settings';
-import { ShieldCheck, AlertTriangle, Home, BookOpen, Share2, Settings as SettingsIcon, LogIn, LogOut, Save } from 'lucide-react';
+import SavingsCalculator from './components/SavingsCalculator';
+import MoodTracker from './components/MoodTracker';
+import WhyIStarted from './components/WhyIStarted';
+import Challenges from './components/Challenges';
+import RelaxingExercises from './components/RelaxingExercises';
+import StatisticsChart from './components/StatisticsChart';
+import MedicationTracker from './components/MedicationTracker';
+import TherapistSpace from './components/TherapistSpace';
+import Community from './components/Community';
+import { ShieldCheck, AlertTriangle, Home, BookOpen, Share2, Settings as SettingsIcon, LogIn, LogOut, Save, EyeOff, Users, HeartPulse } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { auth, db, googleProvider } from './firebase';
 import { signInAnonymously, onAuthStateChanged, signInWithPopup, linkWithPopup, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore';
@@ -108,9 +118,21 @@ function App() {
   };
 
   const handleReset = () => {
-    if (confirm("¿Estás seguro de que deseas reiniciar tu contador? Recuerda que una recaída es parte del proceso, no el fin.")) {
-      handleStart();
-    }
+    Swal.fire({
+      title: '¿Tuve una recaída?',
+      text: '¿Estás seguro de que deseas reiniciar tu contador? Recuerda que una recaída es parte del proceso, no el fin. ¡Vuelve a levantarte!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, reiniciar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#f43f5e',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        handleStart();
+      }
+    });
   };
 
   const togglePanic = () => {
@@ -121,7 +143,14 @@ function App() {
     if (user) {
       const url = `${window.location.origin}/companion/${user.uid}`;
       navigator.clipboard.writeText(url);
-      alert("Enlace copiado al portapapeles. Compártelo con alguien de confianza.");
+      Swal.fire({
+        title: '¡Enlace Copiado!',
+        text: 'Compártelo con alguien de confianza.',
+        icon: 'success',
+        background: '#1e293b',
+        color: '#f1f5f9',
+        confirmButtonColor: '#38bdf8'
+      });
     }
   };
 
@@ -130,7 +159,13 @@ function App() {
       if (user && user.isAnonymous) {
         // Link account
         await linkWithPopup(user, googleProvider);
-        alert("Cuenta vinculada con éxito. Tu progreso ahora está seguro.");
+        Swal.fire({
+          title: 'Conectado',
+          text: 'Cuenta vinculada con éxito. Tu progreso ahora está seguro.',
+          icon: 'success',
+          background: '#1e293b',
+          color: '#f1f5f9'
+        });
       } else {
         // Normal login
         await signInWithPopup(auth, googleProvider);
@@ -138,20 +173,43 @@ function App() {
     } catch (error) {
       console.error("Auth error:", error);
       if (error.code === 'auth/credential-already-in-use') {
-        alert("Esta cuenta de Google ya está en uso. Por favor cierra sesión e inicia con ella.");
+        Swal.fire({
+          title: 'Error de Cuenta',
+          text: 'Esta cuenta de Google ya está en uso. Por favor cierra sesión e inicia con ella.',
+          icon: 'error',
+          background: '#1e293b',
+          color: '#f1f5f9'
+        });
       } else {
-        alert("Error al conectar con Google: " + error.message);
+        Swal.fire({
+          title: 'Error',
+          text: 'Error al conectar con Google: ' + error.message,
+          icon: 'error',
+          background: '#1e293b',
+          color: '#f1f5f9'
+        });
       }
     }
   };
 
   const handleLogout = async () => {
-    if (confirm("¿Cerrar sesión?")) {
-      isExplicitLogout.current = true; // Mark as explicit logout
-      await signOut(auth);
-      setStartDate(null);
-      navigate('/'); // Redirect to home/welcome screen
-    }
+    Swal.fire({
+      title: '¿Cerrar sesión?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Salir',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#f43f5e',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        isExplicitLogout.current = true;
+        await signOut(auth);
+        setStartDate(null);
+        navigate('/');
+      }
+    });
   };
 
   return (
@@ -207,6 +265,15 @@ function App() {
             <AlertTriangle size={20} />
             {showPanic ? 'Cerrar' : 'Ayuda'}
           </button>
+          
+          <button 
+            className="auth-btn" 
+            title="Salir rápido"
+            onClick={() => window.location.replace("https://google.com")}
+            style={{ background: '#000', color: '#fff', border: 'none', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}
+          >
+            <EyeOff size={20} />
+          </button>
         </div>
       </header>
 
@@ -253,6 +320,23 @@ function App() {
                     </>
                   )}
                   <Achievements startDate={startDate} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+                      <SavingsCalculator startDate={startDate} user={user} />
+                      <MoodTracker user={user} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+                      <WhyIStarted user={user} />
+                      <Challenges user={user} />
+                  </div>
+                  <div style={{ marginTop: '1.5rem' }}>
+                      <StatisticsChart startDate={startDate} user={user} />
+                  </div>
+                  <div style={{ marginTop: '1.5rem' }}>
+                      <MedicationTracker />
+                  </div>
+                  <div style={{ marginTop: '1.5rem' }}>
+                      <RelaxingExercises />
+                  </div>
                   <MotivationSection />
                 </div>
               )
@@ -262,6 +346,8 @@ function App() {
                 <EducationSection />
               </div>
             } />
+            <Route path="/community" element={<Community />} />
+            <Route path="/therapist" element={<TherapistSpace user={user} startDate={startDate} />} />
             <Route path="/settings" element={
               user ? <Settings user={user} startDate={startDate} onUpdateDate={setStartDate} /> : <div className="loading">Inicia sesión para ver ajustes</div>
             } />
@@ -279,6 +365,14 @@ function App() {
           <NavLink to="/education" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <BookOpen size={24} />
             <span>Aprender</span>
+          </NavLink>
+          <NavLink to="/therapist" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <HeartPulse size={24} />
+            <span>Terapia</span>
+          </NavLink>
+          <NavLink to="/community" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            <Users size={24} />
+            <span>Comunidad</span>
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <SettingsIcon size={24} />
