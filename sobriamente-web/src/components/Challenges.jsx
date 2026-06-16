@@ -10,7 +10,11 @@ const DEFAULT_CHALLENGES = [
 ];
 
 const Challenges = ({ user }) => {
-    const [completed, setCompleted] = useState({});
+    const [completed, setCompleted] = useState(() => {
+        const today = new Date().toISOString().split('T')[0];
+        const stored = localStorage.getItem(`challenges_${today}`);
+        return stored ? JSON.parse(stored) : {};
+    });
 
     const getTodayKey = () => new Date().toISOString().split('T')[0];
 
@@ -20,17 +24,10 @@ const Challenges = ({ user }) => {
             if (user) {
                 const docRef = doc(db, "users", user.uid, "challenges", today);
                 const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
+                if (docSnap.exists() && docSnap.data().completed !== undefined) {
                     setCompleted(docSnap.data().completed || {});
-                    return;
+                    localStorage.setItem(`challenges_${today}`, JSON.stringify(docSnap.data().completed || {}));
                 }
-            }
-            // Fallback local
-            const stored = localStorage.getItem(`challenges_${today}`);
-            if (stored) {
-                setCompleted(JSON.parse(stored));
-            } else {
-                setCompleted({});
             }
         };
         loadChallenges();

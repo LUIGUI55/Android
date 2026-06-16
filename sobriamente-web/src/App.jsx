@@ -25,7 +25,10 @@ import { doc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore';
 import { differenceInDays } from 'date-fns';
 
 function App() {
-  const [startDate, setStartDate] = useState(null);
+  const [startDate, setStartDate] = useState(() => {
+    const stored = localStorage.getItem('sobrietyStartDate');
+    return stored ? new Date(stored) : null;
+  });
   const [showPanic, setShowPanic] = useState(false);
   const [user, setUser] = useState(null);
 
@@ -57,15 +60,17 @@ function App() {
         const docRef = doc(db, "users", currentUser.uid);
         const docSnap = await getDoc(docRef);
 
-        if (docSnap.exists()) {
-          setStartDate(new Date(docSnap.data().startDate));
+        if (docSnap.exists() && docSnap.data().startDate) {
+          const cloudDate = new Date(docSnap.data().startDate);
+          setStartDate(cloudDate);
+          localStorage.setItem('sobrietyStartDate', cloudDate.toISOString());
         } else {
           // Fallback to local storage if exists, then sync to cloud
           const storedDate = localStorage.getItem('sobrietyStartDate');
           if (storedDate) {
             const date = new Date(storedDate);
             setStartDate(date);
-            await setDoc(docRef, { startDate: date.toISOString() });
+            await setDoc(docRef, { startDate: date.toISOString() }, { merge: true });
           }
         }
       } else {
@@ -332,7 +337,7 @@ function App() {
                       <StatisticsChart startDate={startDate} user={user} />
                   </div>
                   <div style={{ marginTop: '1.5rem' }}>
-                      <MedicationTracker />
+                      <MedicationTracker user={user} />
                   </div>
                   <div style={{ marginTop: '1.5rem' }}>
                       <RelaxingExercises />

@@ -6,7 +6,10 @@ import { db } from '../firebase';
 import Swal from 'sweetalert2';
 
 const SavingsCalculator = ({ startDate, user }) => {
-    const [dailyCost, setDailyCost] = useState(0);
+    const [dailyCost, setDailyCost] = useState(() => {
+        const stored = localStorage.getItem('dailyCost');
+        return stored ? Number(stored) : 0;
+    });
     const [isEditing, setIsEditing] = useState(false);
     const [tempCost, setTempCost] = useState('');
 
@@ -15,15 +18,10 @@ const SavingsCalculator = ({ startDate, user }) => {
             if (user) {
                 const docRef = doc(db, "users", user.uid);
                 const docSnap = await getDoc(docRef);
-                if (docSnap.exists() && docSnap.data().dailyCost) {
+                if (docSnap.exists() && docSnap.data().dailyCost !== undefined) {
                     setDailyCost(docSnap.data().dailyCost);
-                    return;
+                    localStorage.setItem('dailyCost', docSnap.data().dailyCost.toString());
                 }
-            }
-            // Fallback to local storage
-            const stored = localStorage.getItem('dailyCost');
-            if (stored) {
-                setDailyCost(Number(stored));
             }
         };
         loadSavings();

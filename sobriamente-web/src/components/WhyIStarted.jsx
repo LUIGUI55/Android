@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const WhyIStarted = ({ user }) => {
-    const [reason, setReason] = useState('');
+    const [reason, setReason] = useState(() => localStorage.getItem('whyReason') || '');
     const [isEditing, setIsEditing] = useState(false);
     const [tempReason, setTempReason] = useState('');
 
@@ -13,15 +13,10 @@ const WhyIStarted = ({ user }) => {
             if (user) {
                 const docRef = doc(db, "users", user.uid);
                 const docSnap = await getDoc(docRef);
-                if (docSnap.exists() && docSnap.data().reason) {
+                if (docSnap.exists() && docSnap.data().reason !== undefined) {
                     setReason(docSnap.data().reason);
-                    return;
+                    localStorage.setItem('whyReason', docSnap.data().reason);
                 }
-            }
-            // Fallback local
-            const stored = localStorage.getItem('whyReason');
-            if (stored) {
-                setReason(stored);
             }
         };
         loadReason();

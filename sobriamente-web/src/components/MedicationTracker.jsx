@@ -1,20 +1,58 @@
-import React, { useState } from 'react';
-import { Pill, Plus, CalendarCheck2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Pill, Plus, CalendarCheck2, Trash2 } from 'lucide-react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
-const MedicationTracker = () => {
-    const [meds, setMeds] = useState([
-        { id: 1, name: 'Vitamina B1', time: 'Mañana', taken: false }
-    ]);
+const MedicationTracker = ({ user }) => {
+    const [meds, setMeds] = useState(() => {
+        const stored = localStorage.getItem('trackedMeds');
+        return stored ? JSON.parse(stored) : [
+            { id: 1, name: 'Vitamina B1', time: 'Mañana', taken: false }
+        ];
+    });
     const [newMed, setNewMed] = useState('');
 
+    useEffect(() => {
+        const loadMeds = async () => {
+            if (user) {
+                const docRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists() && docSnap.data().meds !== undefined) {
+                    setMeds(docSnap.data().meds);
+                    localStorage.setItem('trackedMeds', JSON.stringify(docSnap.data().meds));
+                }
+            }
+        };
+        loadMeds();
+    }, [user]);
+
+    const saveMeds = async (updatedMeds) => {
+        setMeds(updatedMeds);
+        localStorage.setItem('trackedMeds', JSON.stringify(updatedMeds));
+        if (user) {
+            try {
+                await setDoc(doc(db, "users", user.uid), { meds: updatedMeds }, { merge: true });
+            } catch (e) {
+                console.error("Error saving meds to Firestore", e);
+            }
+        }
+    };
+
     const toggleMed = (id) => {
-        setMeds(meds.map(med => med.id === id ? { ...med, taken: !med.taken } : med));
+        const updated = meds.map(med => med.id === id ? { ...med, taken: !med.taken } : med);
+        saveMeds(updated);
     };
 
     const addMed = () => {
         if (!newMed.trim()) return;
-        setMeds([...meds, { id: Date.now(), name: newMed, time: 'General', taken: false }]);
+        const updated = [...meds, { id: Date.now(), name: newMed, time: 'General', taken: false }];
+        saveMeds(updated);
         setNewMed('');
+    };
+
+    const deleteMed = (id) => {
+        const updated = meds.filter(med => med.id !== id);
+        saveMeds(updated);
     };
 
     return (
@@ -35,9 +73,22 @@ const MedicationTracker = () => {
                             <span className="med-name">{med.name}</span>
                             <span className="med-time">{med.time}</span>
                         </div>
-                        <button className="check-med-btn">
-                            {med.taken ? <CalendarCheck2 size={20} color="#34d399" /> : <div className="empty-circle-sm"></div>}
-                        </button>
+                        <div className="med-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <button 
+                                className="delete-med-btn" 
+                                onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    deleteMed(med.id); 
+                                }}
+                                title="Eliminar"
+                                style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                            <button className="check-med-btn">
+                                {med.taken ? <CalendarCheck2 size={20} color="#34d399" /> : <div className="empty-circle-sm"></div>}
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>

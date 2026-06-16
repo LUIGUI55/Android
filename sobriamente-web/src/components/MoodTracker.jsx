@@ -12,7 +12,10 @@ const MOODS = [
 ];
 
 const MoodTracker = ({ user }) => {
-    const [todayMood, setTodayMood] = useState(null);
+    const [todayMood, setTodayMood] = useState(() => {
+        const today = new Date().toISOString().split('T')[0];
+        return localStorage.getItem(`mood_${today}`) || null;
+    });
 
     const getTodayKey = () => new Date().toISOString().split('T')[0];
 
@@ -22,15 +25,10 @@ const MoodTracker = ({ user }) => {
             if (user) {
                 const docRef = doc(db, "users", user.uid, "moods", today);
                 const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
+                if (docSnap.exists() && docSnap.data().moodId !== undefined) {
                     setTodayMood(docSnap.data().moodId);
-                    return;
+                    localStorage.setItem(`mood_${today}`, docSnap.data().moodId);
                 }
-            }
-            // Fallback local
-            const stored = localStorage.getItem(`mood_${today}`);
-            if (stored) {
-                setTodayMood(stored);
             }
         };
         loadMood();
